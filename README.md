@@ -1,11 +1,12 @@
 # Projects
 
-CSE6040 Computing for Data Analysis:
+CSE6040 Computing for Data Analysis: \n
 
-50% of final grade consists of weekly homework
-10% Midterm 1
-15% Midterm 2
-25% Final Exam
+50% of final grade consists of weekly homework \n
+10% Midterm 1 \n
+15% Midterm 2 \n
+25% Final Exam \n
+3% Extra Credit Project \n
 All exams are proctored and last 3.5-4.5 hours & open book & open internet (but no AI allowed)
 
 
@@ -13,7 +14,7 @@ Unfortuanately, I only have access to my solutions for the homework of Week 1-5,
 
 Topics Covered:
 
-Notebook0-1: Python Review
+Notebook0-1: Python Review \n
 Notebook2: Pairwise Association Mining
 Notebook4: Representing Numbers
 Notebook5: Preprocessing Unstructured Text
