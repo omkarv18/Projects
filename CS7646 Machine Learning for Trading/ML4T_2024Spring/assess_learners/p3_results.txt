@@ -1,0 +1,9 @@
+# Initial Correlation of Features to Response Variable
+0.58889
+0.69344
+0.52253
+0.65613
+0.67350
+0.55572
+0.69474
+0.71186
