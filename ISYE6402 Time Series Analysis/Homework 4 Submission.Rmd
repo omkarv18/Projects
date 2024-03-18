@@ -1,0 +1,342 @@
+---
+title: "ISYE 6402 Homework 4"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+
+# Set up the default parameters
+# 1. The code block will not be shown in the document
+# 2. set up figure display size
+# 3. turn off all the warnings and messages
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width = 8, fig.height = 4)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+```
+
+# Background
+
+For this data analysis, you will analyze the daily and weekly domestic passenger count arriving in Hawaii airports. File *DailyDomestic.csv* contains the *daily* number of passengers between May 2019 and February 2023 File *WeeklyDomestic.csv* contains the *weekly* number of passengers for the same time period. Here we will use different ways of fitting the ARIMA model while dealing with trend and seasonality.
+
+```{r library}
+
+library(lubridate)
+library(mgcv)
+library(tseries)
+library(car)
+
+```
+
+# Instructions on reading the data
+
+To read the data in `R`, save the file in your working directory (make sure you have changed the directory if different from the R working directory) and read the data using the `R` function `read.csv()`
+
+```{r load data}
+daily <- read.csv("DailyDomestic.csv", head = TRUE)
+daily$date <- as.Date(daily$date)
+weekly <- read.csv("WeeklyDomestic.csv", head = TRUE)
+weekly$week <- as.Date(weekly$week)
+
+```
+
+# Question 1. Trend and seasonality estimation
+
+**1a.** Plot the daily and weekly domestic passenger count separately. Do you see a strong trend and seasonality?
+
+```{r}
+daily_ts <- ts(daily$domestic, start = c(2019, 05, 1), frequency = 365.25)
+ts.plot(daily_ts,ylab="Daily Domestic Passenger Count")
+
+weekly_ts <- ts(weekly$domestic, start = c(2019, 05, 1), frequency = 52)
+ts.plot(weekly_ts,ylab="Weekly Domestic Passenger Count")
+
+```
+
+<span style="color:blue;">*Response*</span>
+<span style="color:blue;">It is difficult to decipher, but upon visual inspection, there does not appear to be a strong trend or seasonality in either plot, but there might be some cyclical behavior. </span>
+
+**1b.** (Trend and seasonality) Fit the *weekly* domestic passenger count with a non-parametric trend using splines and monthly seasonality using ANOVA. Is the seasonality significant? Plot the fitted values together with the original time series. Plot the residuals and the ACF of the residuals. Comment on how the model fits and on the appropriateness of the stationarity assumption of the residuals.
+
+```{r non-parametric trend (weekly)}
+## X-axis points converted to 0-1 scale, common in nonparametric regression
+time.pts = c(1:length(weekly_ts))
+time.pts = c(time.pts - min(time.pts))/max(time.pts)
+
+## Splines Trend Estimation
+#gam.fit = gam(weekly_ts~s(time.pts))
+#weekly.fit.gam = ts(fitted(gam.fit),start=c(2019, 05, 1),frequency=52)
+#ts.plot(weekly_ts,ylab="Domestic Passenger Count", main = "Spline")
+#lines(weekly.fit.gam,lwd=2,col="red")
+
+month = as.factor(format(weekly$week, "%b"))
+
+#gam.fit = gam(weekly_ts~s(time.pts)+season(weekly_ts)-1)
+gam.fit = gam(weekly_ts~s(time.pts)+month-1)
+
+gam.fit.spline = ts((fitted(gam.fit)),start=c(2019, 05, 1),frequency=52)
+
+summary(gam.fit)
+
+ts.plot(weekly_ts,ylab="Domestic Passenger Count", main = "Non-Parametric Spline fitted on Weekly Data")
+lines(gam.fit.spline,lwd=2,col="blue")
+
+dif.fit.gam = ts((weekly_ts-fitted(gam.fit)),start=c(2019, 05, 1),frequency=52)
+ts.plot(dif.fit.gam,ylab="Residual Process", main = "Non-parametric Spline Residuals")
+
+acf(dif.fit.gam, lag.max = 52*2, main="ACF Plot Non-Parametric Spline Residuals")
+
+residuals_weekly = weekly_ts-fitted(gam.fit)
+
+```
+
+
+<span style="color:blue;">*Response:*</span>
+
+<span style="color:blue;">Based on the coefficients computed, and the p-values associated with each month, it appears that the coefficients of the monthly seasonality are significant, with highly significant p-values. </span>
+
+<span style="color:blue;">For the acf plot of the residuals, there appears to be some autocorrelation that is significant, based on the dashed blue 95% confidence interval line. In addition, below the line, there also appears to be some small level of seasonality, as the autocorrelation alternates. The autocorrelation does not drop to zero immediately, so the third condition of stationarity is not met, and we cannot say that the residuals are plausibly stationary. </span>
+
+**1c.** (Trend and seasonality) This time fit the *daily* domestic passenger count with a non-parametric trend using splines, monthly and day-of-the-week seasonality using ANOVA. Plot the fitted values together with the original time series. Are the seasonal effects significant? Plot the residuals and the ACF of the residuals. Comment on how the model fits and on the appropriateness of the stationarity assumption of the residuals.
+
+```{r non-parametric trend (daily)}
+time.pts = c(1:length(daily_ts))
+time.pts = c(time.pts - min(time.pts))/max(time.pts)
+
+
+month = as.factor(format(daily$date, "%b"))
+weekday = as.factor(weekdays(daily$date))
+
+gam.fit = gam(daily_ts~s(time.pts)+month+weekday-1)
+
+gam.fit.spline = ts((fitted(gam.fit)),start=c(2019, 05, 1),frequency=365.25)
+
+summary(gam.fit)
+
+ts.plot(daily_ts,ylab="Domestic Passenger Count", main = "Non-Parametric Spline fitted on Daily Data")
+lines(gam.fit.spline,lwd=2,col="blue")
+
+dif.fit.gam = ts((daily_ts-fitted(gam.fit)),start=c(2019, 05, 1),frequency=365.25)
+ts.plot(dif.fit.gam,ylab="Residual Process", main = "Non-parametric Spline Residuals")
+
+acf(dif.fit.gam, lag.max = 365.25*2, main="ACF Plot Non-Parametric Spline Residuals")
+
+residuals_daily = daily_ts-fitted(gam.fit)
+
+```
+
+<span style="color:blue;">*Response:*</span>
+
+<span style="color:blue;">The day of the week and month seasonality coefficients are significant. Like in the previous question, the model does have a strong autocorrelation at a lag of 1 (one year).  </span>
+
+<span style="color:blue;">Even with applying the day of the week seasonality to the model, there appears to be seasonal autocorrelation, and so the residuals are still not plausibly stationary. </span>
+
+# Question 2. ARMA fitting and residual analysis
+
+**2a.** (ARMA fitting) Fit a ARMA model with both AR and MA orders of 6 without intercept using the residual processes from Question 1b and 1c for the daily and weekly domestic passenger count, respectively. What are the coefficients of the fitted models? Are the fitted ARMA models causal? (Hint: Set include.mean = FALSE if using arima(). Use polyroot() to find the roots of a polynomial.)   
+
+```{r ARMA fitting}
+
+modarma_weekly = arima(residuals_weekly, order=c(6,0,6), method="ML", include.mean = FALSE)
+coefs_weekly = coef(modarma_weekly)
+print(coefs_weekly)
+
+
+roots_weekly = polyroot(c(1, -modarma_weekly$model$phi))
+print(roots_weekly)
+modulus_weekly = Mod(roots_weekly)
+print(modulus_weekly)
+plot(roots_weekly, xlim=c(-1.5, 1.5), ylim=c(-1.5, 1.5))
+lines(complex(arg=seq(0, 2*pi, len=300)))
+
+modarma_daily = arima(residuals_daily, order=c(6,0,6), method="ML", include.mean = FALSE)
+coefs_daily = coef(modarma_daily)
+print(coefs_daily)
+
+roots_daily = polyroot(c(1, -modarma_daily$model$phi))
+print(roots_daily)
+modulus_daily = Mod(roots_daily)
+print(modulus_daily)
+plot(roots_daily, xlim=c(-1.5, 1.5), ylim=c(-1.5, 1.5))
+lines(complex(arg=seq(0, 2*pi, len=300)))
+
+
+```
+
+<span style="color:blue;">*Response* </span>
+
+<span style="color:blue;">The coefficients (phi and theta) are given above for both datasets, and the roots of the AR part of the model are plotted above. </span>
+
+<span style="color:blue;">For the daily dataset, it shows that the process is not clearly stationary (as five of the points are very close to the circle), and that it is also not clearly causal, since all of the points are so close to the circle. For causality, they need to be outside the circle. The modulus of the roots are indeed extremely close to 1, as the console output shows. </span>
+
+<span style="color:blue;">For the weekly dataset, it shows that the process is not clearly stationary (as four of the points are very close to the circle), and that it is also not clearly causal, since the points are just so close to the circle. For causality, they need to be outside the circle. </span>
+
+**2b.** (Residual analysis) Plot the residual processes of the two fitted models in Question 2a. Display the ACF, PACF, QQ-plot of these residual processes. Do the residual processes satisfies the assumptions of the R implementation? 
+
+```{r residual analysis and plot}
+
+par(mfrow=c(2,2))
+plot(resid(modarma_weekly), ylab='Standardized Residuals')
+abline(h=0)
+acf(as.vector(resid(modarma_weekly)), main='ACF of the Weekly Model Residuals')
+pacf(as.vector(resid(modarma_weekly)), main='PACF of the Weekly Model Residuals')
+qqnorm(resid(modarma_weekly))
+qqline(resid(modarma_weekly))
+
+par(mfrow=c(2,2))
+plot(resid(modarma_daily), ylab='Standardized Residuals')
+abline(h=0)
+acf(as.vector(resid(modarma_daily)), main='ACF of the Daily Model Residuals')
+pacf(as.vector(resid(modarma_daily)), main='PACF of the Daily Model Residuals')
+qqnorm(resid(modarma_daily))
+qqline(resid(modarma_daily))
+
+```
+
+<span style="color:blue;">*Response* </span>
+
+<span style="color:blue;">The residual ACF plot for the weekly dataset does not show a pattern, and all values are  the within the confidence interval. The Q-Q norm plot shows a slight tail on the left, but isn't very significant for the normality assumption when using the MLE method. The variance of the residuals from the standardized residual plot is constant. </span>
+
+<span style="color:blue;">For the daily dataset, there are a few places where there is autocorrelation, which may not satisfy the requirement for stationarity. The Q-Q norm plot, however, does not show any tail, and aligns quite well with the expected diagonal line, which shows normality. This is necessary for the MLE method used when creating the models. </span>
+
+
+# Question 3. ARMA fitting and model selection: Differenced daily domestic passenger count
+
+**3a.** (Differencing for seasonality) Difference the daily domestic passenger count by 7 days, then again by 365 days. Plot the differenced time series, its ACF and PACF. Does this looks like a pure AR/MA process from the ACF/PACF plot?
+
+```{r differencing for seasonality}
+
+ddaily7_ts = diff(daily_ts,lag=7)
+ddaily365_ts = diff(ddaily7_ts,lag=365)
+
+#par(mfrow=c(2,1))
+ts.plot(ddaily365_ts,ylab="Differenced Domestic Passenger Count", main = "Differenced Time Series")
+acf(ddaily365_ts, main='ACF of Differenced Domestic Passenger Count',lag.max=365*3)
+pacf(ddaily365_ts, main='PACF of Differenced Domestic Passenger Count',lag.max=365*3)
+
+
+
+```
+
+<span style="color:blue;">*Response:* </span>
+
+<span style="color:blue;">It does not look like a pure AR or MA process based on the ACF and PACF plots. For a pure AR process, the PACF should be zero for lags greater than p=6. This does not seem to be the case based on the PACF plot, as there are several lines after p=6 that are significant. </span>
+
+<span style="color:blue;">For a pure MA process, the ACF should be zero for lags greater than q=6. This does not seem to be the case based on the PACF plot, as there are several lines after q=6 that are significant, especially the spike at the lags shown at around 1 year. </span>
+
+**3b.** (ARMA fitting and order selection). Fit an ARMA model without intercept using the differenced daily data with AR and MA order up to 8. Select the best ARMA model using AICc. What is the order for the selected model and what is its AICc?
+
+```{r ARMA model}
+n = length(ddaily365_ts)
+norder = 8
+p=c(1:norder)-1;q = c(1:norder)-1
+aic = matrix(0, norder, norder)
+for (i in 1:norder){
+	for(j in 1:norder){
+		modij = arima(ddaily365_ts, order=c(p[i], 0, q[j]), method='ML')
+		aic[i,j] = modij$aic-2*(p[i]+q[j]+1)*n/(n-p[i]-q[j]-2)}}
+
+aicv = as.vector(aic)
+#plot(aicv, ylab="AIC values")
+indexp = rep(c(1:norder), norder)
+indexq = rep(c(1:norder), each=norder)
+indexaic = which(aicv == min(aicv))
+porder = indexp[indexaic]-1
+qorder = indexq[indexaic]-1
+
+final_model = arima(ddaily365_ts, order = c(porder,0,qorder), method='ML')
+
+cat('P Order:', porder, '\n')
+cat('Q Order:', qorder, '\n')
+cat('AIC Value', aicv[indexaic], '\n')
+
+cat('Final Model Coefficients', final_model$coef, '\n')
+
+plot(aicv, ylab="AIC values")
+
+#arma_diff = arima(ddaily365_ts, order=c(8,0,8), method="ML", include.mean = FALSE)
+#coefs_weekly = coef(modarma_weekly)
+#print(coefs_weekly)
+
+```
+
+<span style="color:blue;">*Response:*</span>
+
+<span style="color:blue;">As printed, the model chosen has p=q=7, and the AICc value is 19333.37. </span>
+
+**3c.** (Residual analysis) Plot the residual process of the selected model in Question 3b. Display the ACF, PACF and QQ plot of the residual process. How does this model compare to the one on daily passenger count data in Question 2b?
+
+```{r residual analysis}
+
+par(mfrow=c(2,2))
+plot(resid(final_model), ylab='Standardized Residuals')
+abline(h=0)
+acf(as.vector(resid(final_model)), main='ACF of the Chosen Model Residuals')
+pacf(as.vector(resid(final_model)), main='PACF of the Chosen Model Residuals')
+qqnorm(resid(final_model))
+qqline(resid(final_model))
+
+```
+
+<span style="color:blue;">*Response:*  </span>
+
+<span style="color:blue;">In contrast to the ACF and PACF plots of the daily dataset in question 2b, the ACF and PACF values are all within the 95% confidence band, so this satisfies stationarity assumption 3. Similar to question 2b, the Q-Q plot aligns well to the expected diagonal line, and the variance is constant as shown by the residuals plot. </span>
+
+**3d.** (Testing uncorrelated residuals) Use the Ljung-Box Test to decide whether the residuals of the selected ARMA model in Question 3b are correlated.
+
+```{r Ljung-Box test}
+Box.test(final_model$resid, lag = (porder+qorder+1), type="Ljung-Box", fitdf=(porder+qorder))
+```
+
+<span style="color:blue;">*Response:* </span>
+
+<span style="color:blue;">The P value is large (at the 0.05 significance level), indicating that the null hypothesis of uncorrelated residuals is plausible. Thus, according to these tests, the model performs well in modeling the temporal correlation in the time series process since the residuals are uncorrelated.</span>
+
+# Question 4. Seasonal ARMA model and forecasting: Weekly domestic passenger count
+
+**4a.** (Seasonal ARMA) Use the first 185 data points of weekly domestic passenger count as training data. Fit a seasonal ARMA model with intercept, where the non-seasonal model is ARMA(1,1) and the seasonal model is AR(1) with a period of 52 weeks. Plot the residual process and the ACF of the residual process. Comment on the appropriateness of the fitted model.
+
+```{r Seasonal ARMA}
+
+mod_forecast = arima(weekly_ts[1:185], order= c(1, 0, 1), seasonal = list(order=c(1, 0, 0), period=52), method = "ML")
+
+plot(resid(mod_forecast), ylab='Standardized Residuals', type='o', main="Residual Plot")
+abline(h=0)
+acf(as.vector(resid(mod_forecast)), lag.max=365*2, main="ACF: Residuals")
+hist(resid(mod_forecast), xlab='Standardized Residuals', main='Histogram: Residuals')
+qqnorm(resid(mod_forecast))
+qqline(resid(mod_forecast))
+
+```
+
+<span style="color:blue;">*Response:* </span>
+
+<span style="color:blue;">From the residual plot, it appears that the model has constant variance. From the ACF plot, there is only one outlier, but otherwise there appears to be no autocorrelation. This means that my statement regarding yearly seasonality may be correct, as modeling yearly seasonality removed autocorrelation from the residuals. The histogram of the standardized residuals, and the Q-Q plot shows a tiny amount of skewness, but nothing severe to indicate that the MLE method is not appropriate. </span>
+
+**4b.** (Forecasting) Use the fitted model in Question 4a to predict the total passenger count of the remainder of the weeks. Plot the 99% confidence interval. Compare with the actual observation. Does the actual observation fell into the 99% confidence interval?
+
+```{r forecasting}
+
+n = length(weekly_ts); nfit = n-15
+out_pred = as.vector(predict(mod_forecast, n.ahead=15))
+
+
+time_vals = time(weekly_ts)
+ubound = out_pred$pred+2.58*out_pred$se
+lbound = out_pred$pred-2.58*out_pred$se
+ymin=min(lbound)
+ymax=max(ubound)
+plot(time_vals[120:n], weekly_ts[120:n], type="l", ylim=c(ymin,ymax), xlab="Time", ylab="Domestic Passenger Count")
+points(time_vals[(nfit+1):n], out_pred$pred, col="red")
+lines(time_vals[(nfit+1):n], ubound, lty=3, lwd=2, col="blue")
+lines(time_vals[(nfit+1):n], lbound, lty=3, lwd=2, col="blue")
+
+```
+
+
+<span style="color:blue;">*Response*</span>
+
+<span style="color:blue;">As shown in the plot above, the actual observations fall within the 99% confidence interval. In addition, from visual inspection, they follow closely to the actual observations, and they even follow some of the volatility, especially for the last two point predictions. </span>

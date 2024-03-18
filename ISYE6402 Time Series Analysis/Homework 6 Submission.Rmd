@@ -1,0 +1,735 @@
+---
+title: "ISYE 6402 Homework 6 Template"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include = FALSE}
+
+# Set up the default parameters
+# 1. The code block will be shown in the document
+# 2. set up figure display size
+# 3. turn off all the warnings and messages
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width = 8, fig.height = 4)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+## Background
+
+Individuals stock prices tend to exhibit high amounts of non-constant variance, and thus ARIMA models build upon that data would likely exhibit non-constant variance in residuals. In this problem we are going to analyze the Tesla stock price data from January 2015 through end of December 2023. We will use the ARIMA-GARCH to model daily and weekly stock price (adjusted close price at the end of a day for daily data or at the end of the week for weekly data), with a focus on the behavior of its volatility as well as forecasting both the price and the volatility.
+
+##Data import and cleaning
+
+```{r cars}
+## Libraries used within this homework are uploaded here
+library(zoo,warn.conflicts=FALSE)
+library(lubridate,warn.conflicts=FALSE)
+library(mgcv,warn.conflicts=FALSE)
+library(rugarch,warn.conflicts=FALSE)
+library(quantmod,warn.conflicts=FALSE)
+
+```
+
+```{r}
+#importing the data
+dailydata <- read.csv("TSLA_Daily.csv", head = TRUE)
+weeklydata <- read.csv("TSLA_Weekly.csv", head = TRUE)
+
+#cleaning the data
+
+#dates to date format
+weeklydata$Date<-as.Date(weeklydata$Date,format='%m/%d/%y')
+dailydata$Date<-as.Date(dailydata$Date,format='%m/%d/%y')
+
+#prices to timeseries format
+TWeekly <- ts(weeklydata$AdjClose,start=c(2015),freq=52)
+TDaily <- ts(dailydata$AdjClose,start=c(2015),freq=252)
+ 
+```
+
+
+# Question 1: Exploratory Data Analysis 
+
+**1a.** Based on your intuition, when would you use daily vs weekly stock price data?
+
+The decision to use daily stock price data or weekly stock price data depends on the trading horizon. If you are a higher frequency trader, you would trade stocks on a daily basis, whereas if you were a long term investor, the weekly stock price would be more suitable for your needs. 
+
+
+**1b.** Plot the time series plots comparing daily vs weekly data. How do the daily vs weekly time series data compare?
+
+```{r}
+
+ts.plot(TDaily,ylab="Daily Stock Price of Tesla")
+
+ts.plot(TWeekly,ylab="Weekly Stock Price of Tesla")
+
+```
+
+*Response: Weekly vs Monthly Time Series data comparison*
+
+When plotting the entire time series, they look very similar, as the granularity is very small for both weekly and daily time series when observing a period of almost 10 years. 
+
+
+**1c.** Fit a non-parametric trend using splines regression to both the daily and weekly time series data. Overlay the fitted trends. How do the trends compare?
+
+*Analyzing weekly and daily data with trend fitting*
+```{r}
+time.pts = c(1:length(TDaily))
+time.pts = c(time.pts - min(time.pts))/max(time.pts)
+
+## Splines Trend Estimation Daily
+gam.fit = gam(TDaily~s(time.pts))
+daily.fit.gam = ts(fitted(gam.fit),start=c(2015, 1),frequency=252)
+ts.plot(TDaily,ylab="Stock Price", main = "Daily Tesla Stock Price With Splines Trend")
+lines(daily.fit.gam,lwd=2,col="red")
+
+time.pts = c(1:length(TWeekly))
+time.pts = c(time.pts - min(time.pts))/max(time.pts)
+
+## Splines Trend Estimation Weekly
+gam.fit = gam(TWeekly~s(time.pts))
+weekly.fit.gam = ts(fitted(gam.fit),start=c(2015, 1),frequency=52)
+ts.plot(TWeekly,ylab="Stock Price", main = "Weekly Tesla Stock Price With Splines Trend")
+lines(weekly.fit.gam,lwd=2,col="red")
+
+ts.plot(TWeekly,ylab="Stock Price", main = "Weekly Splines vs. Daily Splines Trend")
+lines(weekly.fit.gam,lwd=2,col="red")
+lines(daily.fit.gam,lwd=2,col="blue")
+
+
+```
+
+*Response: Weekly vs Monthly Time Series data trend fit*
+Both trends look almost the same when inspecting both daily and weekly trends. 
+
+**1d.** Consider the return stock price computed as provided in the canvas homework assignment. 
+Apply the formula described in Canvas to compute the return price based on the daily and weekly time series data. Plot the return time series and their corresponding ACF plots. How do the return time series compare in terms of stationarity and serial dependence?
+
+*Analyzing weekly and daily return data and comparing with original data*
+```{r}
+
+TWeekly_returns <- Delt(weeklydata$AdjClose, type='arithmetic', k=1)
+TWeekly_returns <- ts(TWeekly_returns,start=c(2015),freq=52)
+TWeekly_returns <- TWeekly_returns[!is.na(TWeekly_returns)]
+ts.plot(TWeekly_returns,ylab="Returns", main = "Weekly Tesla Stock Returns")
+acf(TWeekly_returns, lag.max = length(TWeekly_returns)*0.5)
+
+TDaily_returns <- Delt(dailydata$AdjClose, type='arithmetic', k=1)
+TDaily_returns <- ts(TDaily_returns,start=c(2015),freq=252)
+TDaily_returns <- TDaily_returns[!is.na(TDaily_returns)]
+ts.plot(TDaily_returns,ylab="Returns", main = "Daily Tesla Stock Returns")
+acf(TDaily_returns, lag.max = length(TDaily_returns)*0.5)
+
+```
+*Response: Return series vs price series analysis*
+
+In terms of serial dependence, it appears that both time series do not have autocorrelation. In terms of stationarity, the mean is constant for both time series. For the variance there seems to be a small spike at around time=270, but otherwise it seems to be constant. This was likely during the period when Tesla stock skyrocketted in value. Due to this, stationarity may not be met, but we continue with caution. 
+
+#Question 2: ARIMA(p,d,q) for Stock Price 
+
+**2a.** Divide the data into training and testing data set, where the training data exclude the last two weeks of data: December 21th-December 28th for weekly data, and December 18th-December 28th for daily data, with the testing data including the last 2 weeks of data. Apply the iterative model to fit an ARIMA(p,d,q) model with max AR and MA orders of 10 and difference orders 1 and 2 separately to the training datasets of the daily and weekly data. Display the summary of the final model fit. (If the AIC difference between d=1 and d=2 models is smaller than 2.5, use the simpler model).
+
+```{r}
+
+n<-length(TDaily)
+TDaily.train<-TDaily[1:(n-8)]
+TDaily.test<-TDaily[(n-7):n]
+
+n2<-length(TWeekly)
+TWeekly.train<-TWeekly[1:(n2-2)]
+TWeekly.test<-TWeekly[(n2-1):n2]
+
+
+allorders <- function(ts_data, max_p, max_d, max_q){
+  orders = data.frame()
+  for (p in 0:max_p){
+    for (d in 1:max_d){
+      for (q in 0:max_q) {
+        possibleError <- tryCatch({
+          mod = arima(ts_data, order=c(p,d,q), method="ML")
+          current.aic = AIC(mod)
+          orders<-rbind(orders,c(p,d,q,current.aic))
+        },
+          error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+        
+      }
+    }
+  }
+  names(orders) <- c("p","d","q","AIC")
+  return(orders[order(orders$AIC),])
+}
+
+head(allorders(TWeekly.train,10,2,10), 5)
+
+```
+
+The chosen p-d-q combination for the weekly data is (6, 1, 10). The model summary is below. 
+
+```{r}
+weekly_arima <- arima(TWeekly.train, order=c(6,1,10), method="ML")
+weekly_arima
+```
+
+Let's fit the daily data. 
+
+```{r}
+
+head(allorders(TDaily.train,10,2,10), 5)
+
+```
+
+The chosen p-d-q combination for the daily data is (8, 1, 8). The model summary is below.
+
+```{r}
+
+daily_arima <- arima(TDaily.train, order=c(8,1,8), method="ML")
+daily_arima
+
+```
+
+*Response: Analysis of the ARIMA Fit for the Weekly and Monthly Data*
+
+Based on the iterative approach, the best order values for the weekly data is 6, 1, 10, and for the daily data it is 8, 1, 8. Both are have a d-order of 1, so there's no need to check whether the next best combination is within an AIC value of 2.5. 
+
+
+**2b.** Evaluate the model residuals and squared residuals using the ACF and PACF plots as well as hypothesis testing for serial correlation for both daily and weekly data. What would you conclude based on this analysis?
+
+```{r}
+daily_residuals <- daily_arima$residuals
+daily_residuals_sq <- daily_residuals ^ 2
+
+weekly_residuals <- weekly_arima$residuals
+weekly_residuals_sq <- weekly_residuals ^ 2
+
+acf(daily_residuals)
+pacf(daily_residuals)
+acf(daily_residuals_sq)
+pacf(daily_residuals_sq)
+acf(weekly_residuals)
+pacf(weekly_residuals)
+acf(weekly_residuals_sq)
+pacf(weekly_residuals_sq)
+
+
+Box.test(daily_residuals,lag=18,type='Ljung',fitdf=17)
+Box.test(daily_residuals_sq,lag=18,type='Ljung',fitdf=17)
+Box.test(weekly_residuals,lag=18,type='Ljung',fitdf=17)
+Box.test(weekly_residuals_sq,lag=18,type='Ljung',fitdf=17)
+```
+*Response:ARIMA residual analysis for the Weekly and Monthly Data*
+
+For the daily data, the acf plots of the residuals resembles that of white noise, but the acf of the squared residuals does not. This means that the time series may plausibly be uncorrelated, but not independent. The same is true for the residuals and squared residuals of the weekly data set. 
+
+For the hypothesis tests, the p-values in all cases are very small (including the squared residuals), which indicates that the residuals are correlated. 
+
+
+**2c.** Apply the models identified in (2a) and forecast the last two weeks of data using both daily and weekly data. Plot the predicted data to compare the predicted values to the actual observed ones. Include 95% confidence intervals for the forecasts in the corresponding plots.
+
+```{r}
+
+n = length(TDaily); nfit = n-8
+TDaily_pred = as.vector(predict(daily_arima, n.ahead=8))
+
+time_vals = time(TDaily)
+ubound = TDaily_pred$pred+1.96*TDaily_pred$se
+lbound = TDaily_pred$pred-1.96*TDaily_pred$se
+ymin=min(lbound)
+ymax=max(ubound)
+plot(time_vals[2250:n], TDaily[2250:n], type="l", ylim=c(ymin,ymax), xlab="Time", ylab="Stock Price", main="Daily Stock Predictions")
+points(time_vals[(nfit+1):n], TDaily_pred$pred, col="red")
+lines(time_vals[(nfit+1):n], ubound, lty=3, lwd=2, col="blue")
+lines(time_vals[(nfit+1):n], lbound, lty=3, lwd=2, col="blue")
+
+```
+
+Here are the predictions for the Weekly Dataset. 
+
+```{r}
+
+n = length(TWeekly); nfit = n-2
+TWeekly_pred = as.vector(predict(weekly_arima, n.ahead=2))
+
+time_vals = time(TWeekly)
+ubound = TWeekly_pred$pred+1.96*TWeekly_pred$se
+lbound = TWeekly_pred$pred-1.96*TWeekly_pred$se
+ymin=min(lbound)
+ymax=max(ubound)
+plot(time_vals[466:n], TWeekly[466:n], type="l", ylim=c(ymin,ymax), xlab="Time", ylab="Stock Price", main="Weekly Stock Predictions")
+points(time_vals[(nfit+1):n], TWeekly_pred$pred, col="red")
+lines(time_vals[(nfit+1):n], ubound, lty=3, lwd=2, col="blue")
+lines(time_vals[(nfit+1):n], lbound, lty=3, lwd=2, col="blue")
+
+```
+
+
+
+*Response: Predictions*
+Both models fit the data well, and both are within the 95% confidence band. For the weekly model, the first test value is very close to the band, but still within. 
+
+
+**2d.** Calculate Mean Absolute Percentage Error (MAPE) and Precision Measure (PM). How many observations are within the prediction bands? Compare the accuracy of the predictions for the daily and weekly time series using these two measures. 
+
+```{r}
+
+cat("MAPE Daily:",mean(abs((TDaily.test-as.numeric(TDaily_pred$pred))/TDaily.test)))
+cat("\nPM Daily:",sum((as.numeric(TDaily_pred$pred) - TDaily.test)^2)/sum((TDaily.test-mean(TDaily.test))^2))
+
+cat("\nMAPE Weekly:",mean(abs((TWeekly.test-as.numeric(TWeekly_pred$pred))/TWeekly.test)))
+cat("\nPM Weekly:",sum((as.numeric(TWeekly_pred$pred) - TWeekly.test)^2)/sum((TWeekly.test-mean(TWeekly.test))^2))
+
+```
+
+*Response: Prediction Comparison*
+
+The MAPE values show that the daily arima model has a better performance than the weekly arima model. The precision measure values, however, show that the weekly model has a better performance, as 3.25 is much farther from a value of 1, indicating that the variance of the model predictions is not the same as the variance of the actual values.  
+
+As explained in the previous question, the daily model has all predictions very close to the test points, with all predictions within the confidence band. The same is true for the weekly predictions, however the first prediction is very close to the confidence band (but both data points are still within the confidence band). 
+
+
+# Question 3: ARMA(p,q)-GARCH(m,n) for Return Stock Price 
+
+**3a.** Divide the data into training and testing data set, where the training data exclude the last two weeks of data : December 21th-December 28th for weekly data, and December 18th-December 28th for daily data. Apply the iterative model to fit an ARMA(p,q)-GARCH(m,n) model by selecting the orders for p & q up to 5 and orders for m & n up to 2. Display the summary of the final model fit. Write up the equation of the estimated model.
+
+
+```{r}
+
+TDaily_returns <- ts(TDaily_returns,start=c(2015),freq=252)
+TWeekly_returns <- ts(TWeekly_returns,start=c(2015),freq=52)
+
+n<-length(TDaily_returns)
+TDaily_returns.train<-TDaily_returns[1:(n-8)]
+TDaily_returns.test<-TDaily_returns[(n-7):n]
+
+n2<-length(TWeekly_returns)
+TWeekly_returns.train<-TWeekly_returns[1:(n2-2)]
+TWeekly_returns.test<-TWeekly_returns[(n2-1):n2]
+
+# Step 1: Find p0, q0
+
+
+allorders2 <- function(ts_data, max_p, max_d, max_q){
+  orders = data.frame()
+  for (p in 0:max_p){
+    for (d in 0:max_d){
+      for (q in 0:max_q) {
+        possibleError <- tryCatch({
+          mod = arima(ts_data, order=c(p,d,q), method="ML")
+          current.aic = AIC(mod)
+          orders<-rbind(orders,c(p,d,q,current.aic))
+        },
+          error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+        
+      }
+    }
+  }
+  names(orders) <- c("p","d","q","AIC")
+  return(orders[order(orders$AIC),])
+}
+
+head(allorders2(TDaily_returns.train,5,0,5), 5)
+head(allorders2(TWeekly_returns.train,5,0,5), 5)
+
+```
+
+For the first step, p0=q0=5 for the daily data, and p0=q0=2 for the weekly data. Now let's move onto step 2. 
+
+```{r}
+test_modelAGG <- function(m,n){
+    spec = ugarchspec(variance.model=list(garchOrder=c(m,n)),
+                      mean.model=list(armaOrder=c(5,5),
+                                      include.mean=T),
+                      distribution.model="std")
+    fit = ugarchfit(spec, TDaily_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(m,n,current.bic)
+    names(df) <- c("m","n","BIC")
+    print(paste(m,n,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGG = data.frame(Inf,Inf,Inf)
+names(ordersAGG) <- c("m","n","BIC")
+
+for (m in 0:2){
+    for (n in 0:2){
+        possibleError <- tryCatch(
+            ordersAGG<-rbind(ordersAGG,test_modelAGG(m,n)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGG <- ordersAGG[order(-ordersAGG$BIC),]
+tail(ordersAGG)
+```
+
+For the Daily Data, m0=n0=1. Let's try for the Weekly Data. 
+
+```{r}
+
+test_modelAGG2 <- function(m,n){
+    spec = ugarchspec(variance.model=list(garchOrder=c(m,n)),
+                      mean.model=list(armaOrder=c(2,2),
+                                      include.mean=T),
+                      distribution.model="std")
+    fit = ugarchfit(spec, TWeekly_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(m,n,current.bic)
+    names(df) <- c("m","n","BIC")
+    print(paste(m,n,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGG2 = data.frame(Inf,Inf,Inf)
+names(ordersAGG2) <- c("m","n","BIC")
+
+for (m in 0:2){
+    for (n in 0:2){
+        possibleError <- tryCatch(
+            ordersAGG2<-rbind(ordersAGG2,test_modelAGG2(m,n)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGG2 <- ordersAGG2[order(-ordersAGG2$BIC),]
+tail(ordersAGG2)
+
+```
+
+For the weekly data, it is m0=2, and n0=1. Let's move on to step 3 with the daily data. 
+
+```{r}
+
+# Step 3: 
+
+test_modelAGA <- function(p,q){
+    spec = ugarchspec(variance.model=list(garchOrder=c(1,1)),
+                      mean.model=list(armaOrder=c(p,q),
+                                      include.mean=T),
+                      distribution.model="std")
+    fit = ugarchfit(spec, TDaily_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(p,q,current.bic)
+    names(df) <- c("p","q","BIC")
+    print(paste(p,q,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGA = data.frame(Inf,Inf,Inf)
+names(ordersAGA) <- c("p","q","BIC")
+for (p in 0:5){
+    for (q in 0:5){
+        possibleError <- tryCatch(
+            ordersAGA<-rbind(ordersAGA,test_modelAGA(p,q)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGA <- ordersAGA[order(-ordersAGA$BIC),]
+tail(ordersAGA)
+
+```
+
+For the daily data, p1=1 and q1 = 0 (0,0 is the trivial solution). Let's try the Weekly data. 
+
+```{r}
+
+test_modelAGA <- function(p,q){
+    spec = ugarchspec(variance.model=list(garchOrder=c(2,1)),
+                      mean.model=list(armaOrder=c(p,q),
+                                      include.mean=T),
+                      distribution.model="std")
+    fit = ugarchfit(spec, TWeekly_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(p,q,current.bic)
+    names(df) <- c("p","q","BIC")
+    print(paste(p,q,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGA = data.frame(Inf,Inf,Inf)
+names(ordersAGA) <- c("p","q","BIC")
+for (p in 0:5){
+    for (q in 0:5){
+        possibleError <- tryCatch(
+            ordersAGA<-rbind(ordersAGA,test_modelAGA(p,q)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGA <- ordersAGA[order(-ordersAGA$BIC),]
+tail(ordersAGA)
+
+
+
+```
+
+For the weekly data, p1=q1=2. Let's move on to step 4 (last step) with the daily data.
+
+```{r}
+
+test_modelAGG <- function(m,n){
+    spec = ugarchspec(variance.model=list(garchOrder=c(m,n)),
+                      mean.model=list(armaOrder=c(1,0),
+                                      include.mean=T), distribution.model="std")
+    fit = ugarchfit(spec, TDaily_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(m,n,current.bic)
+    names(df) <- c("m","n","BIC")
+    print(paste(m,n,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGG = data.frame(Inf,Inf,Inf)
+names(ordersAGG) <- c("m","n","BIC")
+
+for (m in 0:2){
+    for (n in 0:2){
+        possibleError <- tryCatch(
+            ordersAGG<-rbind(ordersAGG,test_modelAGG(m,n)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGG <- ordersAGG[order(-ordersAGG$BIC),]
+tail(ordersAGG)
+
+```
+
+The final daily model is p=1, q=0, m=1, n=1. Let's find the final weekly model. 
+
+```{r}
+
+test_modelAGG <- function(m,n){
+    spec = ugarchspec(variance.model=list(garchOrder=c(m,n)),
+                      mean.model=list(armaOrder=c(2,2),
+                                      include.mean=T), distribution.model="std")
+    fit = ugarchfit(spec, TWeekly_returns.train, solver = 'hybrid')
+    current.bic = infocriteria(fit)[2]
+    df = data.frame(m,n,current.bic)
+    names(df) <- c("m","n","BIC")
+    print(paste(m,n,current.bic,sep=" "))
+    return(df)
+}
+
+ordersAGG = data.frame(Inf,Inf,Inf)
+names(ordersAGG) <- c("m","n","BIC")
+
+for (m in 0:2){
+    for (n in 0:2){
+        possibleError <- tryCatch(
+            ordersAGG<-rbind(ordersAGG,test_modelAGG(m,n)),
+            error=function(e) e
+        )
+        if(inherits(possibleError, "error")) next
+    }
+}
+ordersAGG <- ordersAGG[order(-ordersAGG$BIC),]
+tail(ordersAGG)
+
+```
+
+The final weekly model is p=2, q=2, m=2, n=1. Let's find the summary of the final models. 
+
+```{r}
+
+spec.1 = ugarchspec(variance.model=list(garchOrder=c(1,1)),
+                      mean.model=list(armaOrder=c(1,0),
+                                      include.mean=T), distribution.model="std")
+daily_fit = ugarchfit(spec.1, TDaily_returns.train, solver = 'hybrid')
+daily_fit
+
+```
+
+Here is the model summary for the weekly model. 
+
+```{r}
+
+spec.2 = ugarchspec(variance.model=list(garchOrder=c(2,1)),
+                      mean.model=list(armaOrder=c(2,2),
+                                      include.mean=T), distribution.model="std")
+weekly_fit = ugarchfit(spec.2, TWeekly_returns.train, solver = 'hybrid')
+
+weekly_fit
+```
+
+
+*Response: Analysis of the ARMA GARCH Fit for the Weekly and Daily Data*
+
+The outputs of the models are given above, as well as their coefficient values. Here is the format of the equations. 
+
+Daily Dataset:
+
+\[
+Y_{t} = \mu + \phi Y_{t-1} + Z_{t}
+\]
+
+\[
+\sigma_{t}^2 = \psi_{0} + \psi_{1} Z_{t-1}^2 + \beta_{1} \sigma_{t-1}^2
+\]
+
+Weekly Dataset:
+
+\[
+Y_{t} = \mu + \phi_{1} Y_{t-1} + \phi_{2} Y_{t-2} + Z_{t} + \theta_{1} Z_{t-1} + \theta_{2} Z_{t-2}
+\]
+
+\[
+\sigma_{t}^2 = \psi_{0} + \psi_{1} Z_{t-1}^2 + \psi_{2} Z_{t-2}^2 + \beta_{1} \sigma_{t-1}^2
+\]
+
+**3b.** Evaluate the model residuals and squared residuals using the ACF and PACF plots as well as hypothesis testing for serial correlation. What would you conclude based on this analysis?
+
+
+```{r}
+
+daily_returns_residuals <- daily_fit@fit$residuals
+daily_returns_residuals_sq <- daily_returns_residuals ^ 2
+
+weekly_returns_residuals <- weekly_fit@fit$residuals
+weekly_returns_residuals_sq <- weekly_returns_residuals ^ 2
+
+acf(daily_returns_residuals)
+pacf(daily_returns_residuals)
+acf(daily_returns_residuals_sq)
+pacf(daily_returns_residuals_sq)
+acf(weekly_returns_residuals)
+pacf(weekly_returns_residuals)
+acf(weekly_returns_residuals_sq)
+pacf(weekly_returns_residuals_sq)
+
+
+Box.test(daily_returns_residuals,lag=4,type='Ljung',fitdf=3)
+Box.test(daily_returns_residuals_sq,lag=4,type='Ljung',fitdf=3)
+Box.test(weekly_returns_residuals,lag=8,type='Ljung',fitdf=7)
+Box.test(weekly_returns_residuals_sq,lag=8,type='Ljung',fitdf=7)
+
+```
+*Response*
+
+For the daily data, the acf plots of the residuals resembles that of white noise, but the acf of the squared residuals does not. This means that the time series may plausibly be uncorrelated, but not independent. The same is true for the residuals and squared residuals of the weekly data set. Because the squared residuals acfs plots do not resemble that of white noise, it suggests that a higher order GARCH model be be necessary. 
+
+For the hypothesis tests, the p-values in all cases are very small (including the squared residuals), which indicates that the residuals are correlated. 
+ 
+
+**3c.** Apply the models identified in (3a) and forecast the mean and the variance of the last two weeks of data. Plot the predicted data to compare the predicted values to the actual observed ones. Include 95% confidence intervals for the forecasts for the mean only in the corresponding plots. Interpret the results, particularly comparing forecast using daily versus weekly data.
+
+
+```{r}
+
+nfore = length(TDaily_returns.test)
+fore.series.1 = NULL
+fore.sigma.1 = NULL
+
+for(f in 1: nfore){
+    ## Fit models
+    data = TDaily_returns.train
+    if(f>2)
+       data = c(TDaily_returns.train,TDaily_returns.test[1:(f-1)])
+    final.model.1 = ugarchfit(spec.1, data, solver = 'hybrid')
+    
+    ## Forecast
+    fore = ugarchforecast(final.model.1, n.ahead=1)
+    fore.series.1 = c(fore.series.1, fore@forecast$seriesFor)
+    fore.sigma.1 = c(fore.sigma.1, fore@forecast$sigmaFor)
+    
+}
+
+n = length(TDaily_returns); nfit = n-8
+#TDaily_pred = as.vector(predict(daily_arima, n.ahead=8))
+
+time_vals = time(TDaily_returns)
+ubound = fore.series.1+1.96*sqrt(fore.sigma.1)
+lbound = fore.series.1-1.96*sqrt(fore.sigma.1)
+ymin=min(lbound)
+ymax=max(ubound)
+plot(time_vals[2249:n], TDaily_returns[2249:n], type="l", ylim=c(ymin,ymax), xlab="Time", ylab="Stock Return", main="Daily Stock Return Predictions")
+points(time_vals[(nfit+1):n], fore.series.1, col="red")
+lines(time_vals[(nfit+1):n], ubound, lty=3, lwd=2, col="blue")
+lines(time_vals[(nfit+1):n], lbound, lty=3, lwd=2, col="blue")
+
+```
+
+Here are the predictions for the weekly returns. 
+
+```{r}
+nfore = length(TWeekly_returns.test)
+fore.series.2 = NULL
+fore.sigma.2 = NULL
+
+for(f in 1: nfore){
+    ## Fit models
+    data = TWeekly_returns.train
+    if(f>2)
+       data = c(TWeekly_returns.train,TWeekly_returns.test[1:(f-1)])
+    final.model.2 = ugarchfit(spec.2, data, solver = 'hybrid')
+    
+    ## Forecast
+    fore = ugarchforecast(final.model.2, n.ahead=1)
+    fore.series.2 = c(fore.series.2, fore@forecast$seriesFor)
+    fore.sigma.2 = c(fore.sigma.2, fore@forecast$sigmaFor)
+    
+}
+
+n = length(TWeekly_returns); nfit = n-2
+#TDaily_pred = as.vector(predict(daily_arima, n.ahead=8))
+
+time_vals = time(TWeekly_returns)
+ubound = fore.series.2+1.96*sqrt(fore.sigma.2)
+lbound = fore.series.2-1.96*sqrt(fore.sigma.2)
+ymin=min(lbound)
+ymax=max(ubound)
+plot(time_vals[462:n], TDaily_returns[462:n], type="l", ylim=c(ymin,ymax), xlab="Time", ylab="Stock Return", main="Weekly Stock Return Predictions")
+points(time_vals[(nfit+1):n], fore.series.2, col="red")
+lines(time_vals[(nfit+1):n], ubound, lty=3, lwd=2, col="blue")
+lines(time_vals[(nfit+1):n], lbound, lty=3, lwd=2, col="blue")
+```
+
+
+*Response: Interpretation of the results*
+
+The predictions for both the daily data and the weekly data are very close to the test data points, and all points are within the 95% confidence interval. The accuracy of both prediction models are similar, and there does not appear to be a significant difference between the two. 
+
+
+**3d.** Calculate Mean Absolute Percentage Error (MAPE) and Precision Measure (PM) for the mean forecasts.  Compare the accuracy of the predictions for the daily and weekly time series using these two measures. Compare the accuracy of the forecasts with those obtained in (2d). Interpret the results.
+
+```{r}
+cat("MAPE Daily:",mean(abs((TDaily_returns.test-as.numeric(fore.series.1))/TDaily_returns.test)))
+cat("\nPM Daily:",sum((as.numeric(fore.series.1) - TDaily_returns.test)^2)/sum((TDaily_returns.test-mean(TDaily_returns.test))^2))
+
+cat("\nMAPE Weekly:",mean(abs((TWeekly_returns.test-as.numeric(fore.series.2))/TWeekly_returns.test)))
+cat("\nPM Weekly:",sum((as.numeric(fore.series.2) - TWeekly_returns.test)^2)/sum((TWeekly_returns.test-mean(TWeekly_returns.test))^2))
+
+
+```
+
+*Response: Model comparison *
+
+The MAPE values show that the weekly model has a better performance than the daily model. The precision measure values show the daily model having a better balance between the variance of the actual vs prediction variance, as the value of closer to 1. However, there are only two predictions from the weekly model, so it may not be definite. The precision measures are both close to 1, which means that the variability in the predictions is similar to the variability in the observed data over the prediction period. 
+
+This is a different result compared to the results from 2d, which showed a precision measure for the daily arima model much higher than 1. In addition, the MAPE value is slightly better for the weekly model, which was not the case for question 2d. 
+
+# Question 4: Reflection on the Modeling and Forecasting 
+
+Based on the analysis above, discuss the application of ARIMA on the stock price versus the application of ARMA-GARCH on the stock return. How do the models fit the data? How well do the models predict?  How do the models perform when using daily versus weekly data? Would you use one approach over another for different settings? What are some specific points of caution one would need to consider when applying those models?
+
+*Response: Final considerations*
+
+While both models performed well in the accuracy measures, the ARMA-GARCH model performed better according to the confidence interval, as one weekly data point was very close to the band. In addition, the ARIMA predictions did not have much variability. This was evident in the ARIMA daily stock price predictions, as the predictions were slowly decreasing, and exhibited no variation. On the other hand, the ARMA-GARCH model captured the variation of the data (as shown by the precision measure), as well as overall accuracy. 
+
+According to the MAPE, the ARIMA model performed better with the daily data, whereas the ARMA-GARCH model performed better with the weekly data. This is likely due to the fact that returns are on average very close to zero, and the variability in the predictions would significantly impact the values for MAPE. This is something to keep in mind when working with MAPE with different data, as it cannot be compared directly. 
+
+The ARIMA model would work best for data where variation is not expected to change, or is constant. Then the ARIMA model would be the preferred model due to its simplicity. This is not necessarily true for the stock market, as the variation changes constantly, and needs to be captured. 
+
