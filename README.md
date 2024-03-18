@@ -25,4 +25,4 @@ Notebook11: Ranking Relational Objects
 Notebook12: Linear Regression  
 Notebook13: Classification (Logistic Regression)  
 Notebook14: Clustering via k-means  
-Notebook15: Compression via PCA  
+Notebook15: Compression via Principle Component Analysis  
