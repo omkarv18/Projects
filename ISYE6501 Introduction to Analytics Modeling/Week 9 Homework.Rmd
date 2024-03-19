@@ -1,0 +1,158 @@
+---
+title: "Week 9 Homework"
+output: html_document
+date: "2023-10-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 12.1:
+
+Describe a situation or problem from your job, everyday life, current events, etc., for which a design of experiments approach would be appropriate.
+
+ANS:
+
+One situation would be deciding whether or not a particular youtube video thumbnail garners more views, compared to another one with a difference. For example, one difference would be whether having the reacting host's mouth open, vs having the host's mouth closed. A simple hypothesis test could determine whether it is more likely for a user to click on the video. 
+
+## Problem 12.2
+
+To determine the value of 10 different yes/no features to the market value of a house (large yard, solar roof, etc.), a real estate agent plans to survey 50 potential buyers, showing a fictitious house with different combinations of features.  To reduce the survey size, the agent wants to show just 16 fictitious houses. Use R’s FrF2 function (in the FrF2 package) to find a fractional factorial design for this experiment: what set of features should each of the 16 fictitious houses have?  Note: the output of FrF2 is “1” (include) or  “-1” (don’t include) for each feature.
+
+ANS: 
+
+For this problem, we first need to install the FrF2 package, and apply the FrF2 function. In the computation below, the number of factors was set to 10, and the nruns was set to 16, as described in the question. 
+
+```{r frf2}
+library(FrF2)
+
+nfactors <- 10
+
+
+design <- FrF2(nruns = 16, nfactors = nfactors)
+design
+```
+
+Attempt to go "above and beyond":
+
+Another way is to set the resolution to 3, which lets you view the main effects. This approach will make it easier for you to estimate the effects on the response variable of each factor independently. 
+
+```{r}
+nfactors2 <- 10
+
+
+design2 <- FrF2(resolution = 3, nfactors = nfactors2)
+design2
+```
+
+
+
+
+## Problem 13.1
+
+For each of the following distributions, give an example of data that you would expect to follow this distribution (besides the examples already discussed in class).
+
+ANS:
+a.	Binomial   
+
+Suppose an archer is shooting arrows at a target from a distance. The binomial distribution would be useful in modeling the number of arrows that hit the target, if the archer shot a total of 20 arrows, given that each shot is independent of the previous shot. 
+
+b.	Geometric   
+
+In the game of chess, how many tries would it take for a 1500 rated player to win his first game against a 1600 player? In chess, a rating difference of 100 means that the lower rated player has a 25% chance of winning against the higher rated player, and this probability does not change (at least for a low number of games, unless the player's ability changes). 
+
+c.	Poisson   
+
+At a grocery store, the poisson distribution could be used to model the number of times the chicken drumsticks are purchased in one hour, given that on average, 6.2 chicken drumsticks are purchased in one 1 hour. 
+
+d.	Exponential  
+
+We could use the same example as above, where the time between chicken drumsticks purchases is estimated, given a poisson distribution with an average purchase rate of 6.2 drumsticks per hour. 
+
+e.	Weibull
+
+The Weibull distribution could be used to model the time it takes for pairs of shoes to degrade. In this case, the shape parameter is likely to be higher than 1, since all pairs of shoes are getting older, which increases the failure rate over time. 
+
+
+##Problem 13.2
+
+In this problem you, can simulate a simplified airport security system at a busy airport. Passengers arrive according to a Poisson distribution with λ1 = 5 per minute (i.e., mean interarrival rate 1 = 0.2 minutes) to the ID/boarding-pass check queue, where there are several servers who each have exponential service time with mean rate 2 = 0.75 minutes. [Hint: model them as one block that has more than one resource.]  After that, the passengers are assigned to the shortest of the several personal-check queues, where they go through the personal scanner (time is uniformly distributed between 0.5 minutes and 1 minute). 
+
+Use the Arena software (PC users) or Python with SimPy (PC or Mac users) to build a simulation of the system, and then vary the number of ID/boarding-pass checkers and personal-check queues to determine how many are needed to keep average wait times below 15 minutes.  [If you’re using SimPy, or if you have access to a non-student version of Arena, you can use λ1 = 50 to simulate a busier airport.]
+
+ANS:
+
+For this part, I decided to use SimPy in python. For each simulation, I ran it for 24 hours (1440 minutes), and then calculated the average wait time for each passenger that made it through. This simulation was done 100 times for each combination of number of ID/boarding-pass checkers and personal-check queues. For this simulation, it was found that having 5 ID/boarding-pass checkers and 4 personal-check queues was the best, and resulted in low variability. With this combination, the average over all days was 4.6 minutes, and roughly the same for each day.However, with the 4-4 combination it was 12.8, but with very high variability. On some days, the average would be over 25 minutes. Below is the python code. Unfortunately, I'm not able to run the code in Rmarkdown, since my python files are installed in anaconda, and it would be difficult to figure how to link it here. Please don't pay attention to the output of the Rmarkdown, because I don't know how it works. Instead copy-paste the code into your python interpreter, after you've installed the SimPy module. 
+
+
+Attempt to go "above and beyond":
+
+One phenomenon I found was that, although the average for both the queues was the same, having the same number of queues for both stations is not desirable. Because of the higher variability due to the poisson distribution in the boarding queue, there tended to be a bottleneck at the boarding queues, which resulted in unstable daily average wait times for the simulation. By raising the number of queues in the boarding section by one, the average wait time was halved, and stabilized the operation. 
+
+Attempt to go "above and beyond" (2):
+
+Next, I tried to see what would happen if λ1 = 50 per minute. For this, the computation time was much longer, and I ended up settling with a 45-44 combintation. 
+
+```{python}
+import simpy
+import random
+
+
+
+def passenger_arrival(env, boarding_queues, personal_queues, wait_times):
+    passenger_id = 0
+    while True:
+        interarrival_time = random.expovariate(1 / 0.2)  # Mu = 0.2 minutes
+        yield env.timeout(interarrival_time)
+        passenger_id += 1
+        arrival_time = env.now
+        env.process(boarding_pass_check(env, passenger_id, boarding_queues, personal_queues, arrival_time, wait_times))
+
+
+def boarding_pass_check(env, passenger_id, boarding_queues, personal_queues, arrival_time, wait_times):
+    with random.choice(boarding_queues).request() as request:
+        yield request
+        service_time = random.expovariate(1 / 0.75)  # Average service time = 0.75 minutes
+        yield env.timeout(service_time)
+    env.process(personal_check(env, passenger_id, personal_queues, arrival_time, wait_times))
+
+def personal_check(env, passenger_id, personal_queues, arrival_time, wait_times):
+    with min(personal_queues, key=lambda q: len(q.queue)).request() as request:
+        yield request
+        service_time = random.uniform(0.5, 1.0)  # Uniform service time from 0.5 to 1 minute
+        yield env.timeout(service_time)
+        finish_time = env.now
+        wait_times[passenger_id] = finish_time - arrival_time  # Calculate and record the wait time for the passenger
+
+list_avg_times = []
+
+for i in range(100):
+
+    # Initialize SimPy environment
+    env = simpy.Environment()
+
+    #Here you alter the number of queues
+    boarding_queue_num = 4
+    personal_queues_num = 4
+
+
+    # Create initial queues
+    boarding_queues = [simpy.Resource(env) for _ in range(boarding_queue_num)]
+    personal_queues = [simpy.Resource(env) for _ in range(personal_queues_num)]
+
+    # Dictionary to store wait times for each passenger
+    wait_times = {}
+
+    # Start passenger arrival process
+    env.process(passenger_arrival(env, boarding_queues, personal_queues, wait_times))
+
+    # Run the simulation for 24 hours (1440 minutes)
+    env.run(until=1440)
+
+    average = sum(value for value in wait_times.values()) / len(wait_times)
+    list_avg_times.append(average)
+
+print(sum(list_avg_times)/len(list_avg_times))
+```
+

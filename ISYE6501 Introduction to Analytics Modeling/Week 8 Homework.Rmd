@@ -1,0 +1,109 @@
+---
+title: "Week 8 Homework"
+output: html_document
+date: "2023-10-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1: Stepwise Regression:
+
+First, let's have a look at the data. 
+
+```{r getdata}
+library(caret)
+library(glmnet)
+
+
+myData <- read.table("C:/Users/omkar/OneDrive/Documents/Analytical Tools Folder/uscrime.txt", header = TRUE)
+
+head(myData)
+```
+
+
+Now we will build a regression model using stepwise regression. We will start with a linear regression model with all features. 
+
+```{r regression}
+initial_model <- lm(Crime ~ ., data = myData)
+summary(initial_model)
+```
+
+Here is the stepwise regression. For this, the step() function will be used. We will start with the backward selection. 
+
+```{r stepwise}
+backward_model <- step(initial_model, direction = "backward")
+summary(backward_model)
+```
+It appears as though the backward selection has chosen 8 features as shown in the last iteration. Now let's try forward selection. 
+
+```{r}
+forward_model <- step(initial_model, direction = "forward")
+summary(forward_model)
+```
+It appears as though all of the variables have been selected in forward selection. 
+
+Attempt to go 'above and beyond':
+This is unusual, and the likely cause is due to the fact that there are only 47 points, and so the variations in the AIC values for each model could most likely be due to random effects. Stepwise regression often has the problem of overfitting, which is why we should explore other methods for variable selection. 
+
+## Part 2: Lasso Regression:
+
+The next method is Lasso regression. For this, we use the glmnet package. In the glmnet() function, the value of alpha corresponds to the value of lambda in the lecture videos for elastic net, and the value of lambda corresponds to the value of tau in the lecture videos. When alpha equals 1, the second term in the elastic net disappears, and so we are left with only the lasso regression term. We would like to train the function using cross validation to pick the best value of tau (lambda in R), and will do so using the cv.glmnet function. 
+
+```{r lasso}
+predictor_matrix <- scale(as.matrix(myData[, 1:15]))
+
+cv_fit_lasso <- cv.glmnet(x = predictor_matrix, y = myData$Crime, alpha = 1)
+best_lambda <- cv_fit_lasso$lambda.min
+print(best_lambda)
+```
+Here we have found the best value for tau (or lambda in the glmnet package). Now we will view which variables have been selected. 
+
+```{r}
+coefficients <- coef(cv_fit_lasso, s = cv_fit_lasso$lambda[best_lambda])
+print(coefficients)
+```
+Here you can see which variables have coefficients not equal to zero. It appears that only four variables have been selected, Po1, M.F, M, and Prob. 
+
+## Part 3: Elastic-net Regression:
+
+Now let's try to use the elastic net method, and train for values of alpha. This would hopefully result in a model that will have a balance between bias and variance. The procedure is almost the same, but we will need to use a loop to iterate over values of alpha. 
+
+```{r}
+alphas <- seq(0, 1, by = 0.1)
+
+curr_alpha <- NULL
+curr_lambda <- NULL
+curr_cvm <- Inf
+curr_model <- NULL
+
+for (alpha in alphas) {
+  cv_fit_elastic <- cv.glmnet(x = predictor_matrix, y = myData$Crime, alpha = alpha, nfolds = 5)
+  new_lambda <- cv_fit_elastic$lambda.min
+  
+  lambda_index <- which(cv_fit_elastic$lambda == new_lambda)
+  
+  new_cvm <- cv_fit_elastic$cvm[lambda_index]
+  
+  if (new_cvm < curr_cvm){
+    curr_alpha <- alpha
+    curr_lambda <- new_lambda
+    curr_cvm <- new_cvm
+    curr_model <- cv_fit_elastic
+    
+  }
+}
+
+coefficients2 <- coef(curr_model, s = curr_lambda)
+print(curr_alpha)
+print(curr_lambda)
+print(curr_cvm)
+print(coefficients2)
+
+```
+Attempt to go 'above and beyond':
+
+Running the above code several times gives different results each time, with a cvm value ranging from 55000 to 62000. The difference in cvm values is due to the randomness in each cross validation fold. Each fold would have around 9-10 data points, and will result in a lot of randomness between each. Any combination of lambda and tau (or alpha and lambda respectively) will produce a model that is likely overfitted. It appears that 47 observations is not enough to identify real patterns, especially with variables that have relatively low correlation to the response variable. More data is required to make a better variable selection. 
+
+

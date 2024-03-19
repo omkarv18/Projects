@@ -1,0 +1,133 @@
+---
+title: "HW Week 7"
+output:
+  html_document:
+    df_print: paged
+date: "2023-10-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 10.1 Regression Tree model
+
+Let's begin by getting the data
+
+```{r getdata}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(randomForestExplainer)
+library(MASS)
+
+myData <- read.table("C:/Users/omkar/OneDrive/Documents/Analytical Tools Folder/uscrime.txt", header = TRUE)
+
+myData2 <- read.table("C:/Users/omkar/OneDrive/Documents/Analytical Tools Folder/germancredit.txt", header = TRUE)
+
+head(myData)
+```
+
+Now let's begin the process of creating a regression tree model. In week 5, we found that Ed, Po1, Ineq, M, Prob and U2 were good predictors to use, so we will set that as the starting point. 
+
+```{r treebegin}
+
+
+ctrl <- trainControl(method = "cv", number = 5)
+custom_cp <- expand.grid(cp = c(0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13))
+model <- train(Crime ~ Ed + Po1 + Ineq + M + Prob + U2, data = myData, method = "rpart", tuneGrid = custom_cp, trControl = ctrl)
+
+best_model <- model$finalModel
+
+print(model)
+```
+When using the 5-fold cross validation, it appears that the RMSE did not decrease significantly for cp values under 0.08. Since higher cp values correspond to simpler trees, we will use the highest possible value, which is 0.08. Now, let's plot the regression tree model. 
+
+```{r plot}
+rpart.plot(best_model)
+```
+The interpretation of this decision tree is that if the police spending (Po1) is less than 7.7, then the Crime prediction for the new state is 670. If Po1 is greater than 7.7, and if M is less than 13, then the Crime Prediction is 911, else it is 1316. For this model, it appears that only two variables are required, Po1 and M, to reach the best possible performance. 
+
+Next, we have the random forest model. 
+
+```{r forest start}
+rf_model <- randomForest(Crime ~ Ed + Po1 + Ineq + M + Prob + U2, data = myData, ntree = 100, localImp = TRUE)
+# Perform cross-validation
+cv_results <- train(Crime ~ Ed + Po1 + Ineq + M + Prob + U2, data = myData, method = "rf", trControl = ctrl)
+print(cv_results)
+
+```
+Let's now try to explain the random forest model we have created. 
+
+```{r}
+explainer <- min_depth_distribution(rf_model)
+plot_min_depth_distribution(explainer)
+#print(explainer)
+#explainer <- explain(rf_model, data = myData, y = myData$Crime)
+#var_imp_plot <- plot(explainer)
+#print(var_imp_plot)
+
+```
+Let's now see the importance of each variable. From the graph above, it appears that Po1 and Prob are the two most important factors, based on the fact that they have the lowest mean depth compared to other variables. They are also present in the most number of trees as seen in the table below. 
+
+```{r}
+importance <- measure_importance(rf_model)
+importance
+```
+## 10.2 Qualitative Question
+
+Describe a situation or problem from your job, everyday life, current events, etc., for which a logistic regression model would be appropriate. List some (up to 5) predictors that you might use.
+
+Ans: One situation would be to predict whether or not a subscriber to your service is likely to cancel his membership in the following month. Take for example a streaming service. There are several possible predictors for this:
+
+1. Number of minutes of content viewed in the previous month. 
+2. The type of subscription membership used - premium 4k vs standard hd, or other categories. 
+3. The number of months the user has already remained subscribed to the service. 
+4. Whether or not the user has cancelled his subscription before. 
+5. (predicted) Age of the user (to get this data you would need to use a different prediction model)
+
+## 10.3 Logistic Regression
+
+Let's first have a look at the data, convert the right columns to categorical, and then split the data into test and training sets. 
+```{r germancredit}
+head(myData2, 20)
+#unique(myData2$X2)
+#unique(myData2$X1)
+#unique(myData2$X1.1)
+cols_to_convert <- c("A11", "A34", "A43", "A65", "A75", "A93", "A101", "A121", "A143", "A152", "A173", "A192", "A201", "X1.1")
+
+for (col in cols_to_convert) {
+  myData2[[col]] <- factor(myData2[[col]])
+}
+
+train_indices <- createDataPartition(myData2$X1.1, p = 0.7, list = FALSE)
+
+# Create the training dataset
+training_data <- myData2[train_indices, ]
+
+# Create the test dataset
+test_data <- myData2[-train_indices, ]
+```
+Now lets fit the logistic regression using the variables provided. 
+
+```{r}
+full_model <- glm(X1.1 ~ ., data = training_data, family = binomial(link="logit"))
+
+final_model <- step(full_model, direction = 'both', scope = formula(full_model))
+```
+Below, from the formula, you can see which variables are chosen. In this case, AIC was used to find the best combination. A lower AIC value corresponds to a better fit. The step() function balances model complexity (features used) with performance. As you can see, only 11 features were chosen. 
+
+```{r}
+summary(final_model)
+```
+For the next question, we will find the correct threshold, if they estimate that incorrectly identifying a bad customer as good, is 5 times worse than incorrectly classifying a good customer as bad. First, we have to create a confusion matrix. So, I iterated over several values of the threshold, and made sure that there were 5 times as many false positives as false positives. This gave me a threshold probability of 0.172, as shown below
+
+```{r}
+predictions <- predict(final_model, newdata = test_data, type = "response")
+
+predicted_labels <- as.factor(ifelse(predictions > 0.172, 2, 1))
+confusion_matrix <- confusionMatrix(data = predicted_labels, reference = test_data$X1.1)
+print(confusion_matrix)
+```
+

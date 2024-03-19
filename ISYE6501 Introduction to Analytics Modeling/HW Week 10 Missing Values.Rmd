@@ -1,0 +1,75 @@
+---
+title: "HW Week 10 Missing Values"
+output: html_document
+date: "2023-10-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 14.1
+
+1.	Use the mean/mode imputation method to impute values for the missing data.
+
+Let's first load the data. 
+
+
+```{r loading}
+library(mice)
+
+
+myData <- read.csv("C:/Users/omkar/OneDrive/Documents/Analytical Tools Folder/breast-cancer-wisconsin.data.txt", header = TRUE)
+```
+
+Now let's find where the missing values are located. The website from which the data was obtained says that only the 7th column (corresponding to Bare_nuclei) should have missing values. From inspecting the data, it appears that the X1.3 column has the missing values represented by "?". To change it to NA, we will change the column to a numeric form. 
+
+```{r pressure, echo=FALSE}
+myData$X1.3 <- as.integer(myData$X1.3)
+missing_values <- is.na(myData)
+by_col <- colSums(missing_values)
+by_col
+```
+Here, we can see a total of 16 missing values in the seventh column, just as the description mentioned. Now let's impute the mean values to the missing data. Below is the code and output until the 23rd row, where the first missing value exists. 
+
+```{r}
+imp <- mice(myData, method = "mean")
+
+imputed_data <- complete(imp)
+#imputed_data$X1.3 <- as.integer(imputed_data$X1.3)
+
+head(imputed_data, 23)
+```
+From the table above, it appears that the mean for that column is 3.55. I also had to change the data type to numeric, since the mean would be a whole number if it were set to be an integer. 
+
+2.	Use regression to impute values for the missing data.
+
+For this question, we will continue with the mice library, and use the "norm.predict" method. 
+
+```{r}
+
+imp <- mice(myData, method = "norm.predict")
+imp2 <- complete(imp)
+head(imp2, 23)
+```
+
+3.	Use regression with perturbation to impute values for the missing data.
+
+Lastly, we will use the "norm.nob" method to impute using linear regression with pertubation. 
+
+```{r}
+imp3 <- mice(myData, method = c("norm.nob"))
+imp4 <- complete(imp3)
+head(imp4, 23)
+
+```
+
+## Question 15.1
+
+Describe a situation or problem from your job, everyday life, current events, etc., for which optimization would be appropriate. What data would you need? 
+
+In the aerospace manufacturing world, optimization is especially important, especially since many parts don't have a very large product series (product series refers to the number of parts produced). In order to produce these parts at cost, there is a trade off between the initial cost of the equipment, as well as variable costs of labor. The production techniques can also very depending on the product series. In the aerospace industry
+
+The data required to optimize this process would be the batch size, batch interval, storage cost per unit time, cost of machinery, supplier data, regulatory data, and more.
+
+

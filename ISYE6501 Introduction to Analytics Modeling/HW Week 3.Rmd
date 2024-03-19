@@ -1,0 +1,13 @@
+---
+title: "HW Week 3"
+output: pdf_document
+date: "2023-09-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# Question 6.2

@@ -1,0 +1,343 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={HW Week 7},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{HW Week 7}
+\author{}
+\date{\vspace{-2.5em}2023-10-11}
+
+\begin{document}
+\maketitle
+
+\hypertarget{regression-tree-model}{%
+\subsection{10.1 Regression Tree model}\label{regression-tree-model}}
+
+Let's begin by getting the data
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(caret)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Loading required package: ggplot2
+\end{verbatim}
+
+\begin{verbatim}
+## Loading required package: lattice
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(rpart)}
+\FunctionTok{library}\NormalTok{(rpart.plot)}
+\FunctionTok{library}\NormalTok{(randomForest)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## randomForest 4.7-1.1
+\end{verbatim}
+
+\begin{verbatim}
+## Type rfNews() to see new features/changes/bug fixes.
+\end{verbatim}
+
+\begin{verbatim}
+## 
+## Attaching package: 'randomForest'
+\end{verbatim}
+
+\begin{verbatim}
+## The following object is masked from 'package:ggplot2':
+## 
+##     margin
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{library}\NormalTok{(randomForestExplainer)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Registered S3 method overwritten by 'GGally':
+##   method from   
+##   +.gg   ggplot2
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{myData }\OtherTok{\textless{}{-}} \FunctionTok{read.table}\NormalTok{(}\StringTok{"C:/Users/omkar/OneDrive/Documents/Analytical Tools Folder/uscrime.txt"}\NormalTok{, }\AttributeTok{header =} \ConstantTok{TRUE}\NormalTok{)}
+
+\FunctionTok{head}\NormalTok{(myData)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##      M So   Ed  Po1  Po2    LF   M.F Pop   NW    U1  U2 Wealth Ineq     Prob
+## 1 15.1  1  9.1  5.8  5.6 0.510  95.0  33 30.1 0.108 4.1   3940 26.1 0.084602
+## 2 14.3  0 11.3 10.3  9.5 0.583 101.2  13 10.2 0.096 3.6   5570 19.4 0.029599
+## 3 14.2  1  8.9  4.5  4.4 0.533  96.9  18 21.9 0.094 3.3   3180 25.0 0.083401
+## 4 13.6  0 12.1 14.9 14.1 0.577  99.4 157  8.0 0.102 3.9   6730 16.7 0.015801
+## 5 14.1  0 12.1 10.9 10.1 0.591  98.5  18  3.0 0.091 2.0   5780 17.4 0.041399
+## 6 12.1  0 11.0 11.8 11.5 0.547  96.4  25  4.4 0.084 2.9   6890 12.6 0.034201
+##      Time Crime
+## 1 26.2011   791
+## 2 25.2999  1635
+## 3 24.3006   578
+## 4 29.9012  1969
+## 5 21.2998  1234
+## 6 20.9995   682
+\end{verbatim}
+
+\hypertarget{including-plots}{%
+\subsection{Including Plots}\label{including-plots}}
+
+Now let's begin the process of creating a regression tree model. In week
+5, we found that Ed, Po1, Ineq, M, Prob and U2 were good predictors to
+use, so we will set that as the starting point.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{ctrl }\OtherTok{\textless{}{-}} \FunctionTok{trainControl}\NormalTok{(}\AttributeTok{method =} \StringTok{"cv"}\NormalTok{, }\AttributeTok{number =} \DecValTok{5}\NormalTok{)}
+\NormalTok{custom\_cp }\OtherTok{\textless{}{-}} \FunctionTok{expand.grid}\NormalTok{(}\AttributeTok{cp =} \FunctionTok{c}\NormalTok{(}\FloatTok{0.01}\NormalTok{, }\FloatTok{0.02}\NormalTok{, }\FloatTok{0.03}\NormalTok{, }\FloatTok{0.04}\NormalTok{, }\FloatTok{0.05}\NormalTok{, }\FloatTok{0.06}\NormalTok{, }\FloatTok{0.07}\NormalTok{, }\FloatTok{0.08}\NormalTok{, }\FloatTok{0.09}\NormalTok{, }\FloatTok{0.1}\NormalTok{, }\FloatTok{0.11}\NormalTok{, }\FloatTok{0.12}\NormalTok{, }\FloatTok{0.13}\NormalTok{))}
+\NormalTok{model }\OtherTok{\textless{}{-}} \FunctionTok{train}\NormalTok{(Crime }\SpecialCharTok{\textasciitilde{}}\NormalTok{ Ed }\SpecialCharTok{+}\NormalTok{ Po1 }\SpecialCharTok{+}\NormalTok{ Ineq }\SpecialCharTok{+}\NormalTok{ M }\SpecialCharTok{+}\NormalTok{ Prob }\SpecialCharTok{+}\NormalTok{ U2, }\AttributeTok{data =}\NormalTok{ myData, }\AttributeTok{method =} \StringTok{"rpart"}\NormalTok{, }\AttributeTok{tuneGrid =}\NormalTok{ custom\_cp, }\AttributeTok{trControl =}\NormalTok{ ctrl)}
+
+\NormalTok{best\_model }\OtherTok{\textless{}{-}}\NormalTok{ model}\SpecialCharTok{$}\NormalTok{finalModel}
+
+\FunctionTok{print}\NormalTok{(model)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## CART 
+## 
+## 47 samples
+##  6 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 38, 36, 38, 38, 38 
+## Resampling results across tuning parameters:
+## 
+##   cp    RMSE      Rsquared   MAE     
+##   0.01  338.9553  0.3601234  264.0389
+##   0.02  338.9553  0.3601234  264.0389
+##   0.03  338.9553  0.3601234  264.0389
+##   0.04  338.9553  0.3601234  264.0389
+##   0.05  338.3362  0.3611920  265.4113
+##   0.06  338.3362  0.3611920  265.4113
+##   0.07  338.3362  0.3611920  265.4113
+##   0.08  338.3362  0.3611920  265.4113
+##   0.09  346.7878  0.3242249  275.4644
+##   0.10  346.7878  0.3242249  275.4644
+##   0.11  346.7878  0.3242249  275.4644
+##   0.12  346.7878  0.3242249  275.4644
+##   0.13  348.6526  0.2944073  278.0026
+## 
+## RMSE was used to select the optimal model using the smallest value.
+## The final value used for the model was cp = 0.08.
+\end{verbatim}
+
+When using the 5-fold cross validation, it appears that the RMSE did not
+decrease significantly for cp values under 0.08. Since higher cp values
+correspond to simpler trees, we will use the highest possible value,
+which is 0.08. Now, let's plot the regression tree model.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{rpart.plot}\NormalTok{(best\_model)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW-Week-7-document_files/figure-latex/plot-1.pdf} The
+interpretation of this decision tree is that if the police spending
+(Po1) is less than 7.7, then the Crime prediction for the new state is
+670. If Po1 is greater than 7.7, and if M is less than 13, then the
+Crime Prediction is 911, else it is 1316. For this model, it appears
+that only two variables are required, Po1 and M, to reach the best
+possible performance.
+
+Next, we have the random forest model.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{rf\_model }\OtherTok{\textless{}{-}} \FunctionTok{randomForest}\NormalTok{(Crime }\SpecialCharTok{\textasciitilde{}}\NormalTok{ Ed }\SpecialCharTok{+}\NormalTok{ Po1 }\SpecialCharTok{+}\NormalTok{ Ineq }\SpecialCharTok{+}\NormalTok{ M }\SpecialCharTok{+}\NormalTok{ Prob }\SpecialCharTok{+}\NormalTok{ U2, }\AttributeTok{data =}\NormalTok{ myData, }\AttributeTok{ntree =} \DecValTok{100}\NormalTok{, }\AttributeTok{localImp =} \ConstantTok{TRUE}\NormalTok{)}
+\CommentTok{\# Perform cross{-}validation}
+\NormalTok{cv\_results }\OtherTok{\textless{}{-}} \FunctionTok{train}\NormalTok{(Crime }\SpecialCharTok{\textasciitilde{}}\NormalTok{ Ed }\SpecialCharTok{+}\NormalTok{ Po1 }\SpecialCharTok{+}\NormalTok{ Ineq }\SpecialCharTok{+}\NormalTok{ M }\SpecialCharTok{+}\NormalTok{ Prob }\SpecialCharTok{+}\NormalTok{ U2, }\AttributeTok{data =}\NormalTok{ myData, }\AttributeTok{method =} \StringTok{"rf"}\NormalTok{, }\AttributeTok{trControl =}\NormalTok{ ctrl)}
+\FunctionTok{print}\NormalTok{(cv\_results)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Random Forest 
+## 
+## 47 samples
+##  6 predictor
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 36, 38, 38, 37, 39 
+## Resampling results across tuning parameters:
+## 
+##   mtry  RMSE      Rsquared   MAE     
+##   2     276.8569  0.5799343  209.9998
+##   4     270.6001  0.5849774  198.2572
+##   6     278.1649  0.5789581  202.1000
+## 
+## RMSE was used to select the optimal model using the smallest value.
+## The final value used for the model was mtry = 4.
+\end{verbatim}
+
+Let's now try to explain the random forest model we have created.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{explainer }\OtherTok{\textless{}{-}} \FunctionTok{min\_depth\_distribution}\NormalTok{(rf\_model)}
+\FunctionTok{plot\_min\_depth\_distribution}\NormalTok{(explainer)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW-Week-7-document_files/figure-latex/unnamed-chunk-1-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\#print(explainer)}
+\CommentTok{\#explainer \textless{}{-} explain(rf\_model, data = myData, y = myData$Crime)}
+\CommentTok{\#var\_imp\_plot \textless{}{-} plot(explainer)}
+\CommentTok{\#print(var\_imp\_plot)}
+\end{Highlighting}
+\end{Shaded}
+
+Let's now see the importance of each variable.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{importance }\OtherTok{\textless{}{-}} \FunctionTok{measure\_importance}\NormalTok{(rf\_model)}
+\NormalTok{importance}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+##   variable mean_min_depth no_of_nodes mse_increase node_purity_increase
+## 1       Ed       2.586939         196     9223.499             579687.3
+## 2     Ineq       1.930510         262     2239.448             835206.7
+## 3        M       2.375102         218     4158.412             520945.7
+## 4      Po1       1.234694         296    70140.156            2033507.8
+## 5     Prob       1.848878         256    25415.261            1272339.1
+## 6       U2       2.660816         245    16996.771             572161.8
+##   no_of_trees times_a_root      p_value
+## 1          90           13 0.9998361852
+## 2          97           16 0.1320334393
+## 3          94            4 0.9762050607
+## 4          98           27 0.0003175587
+## 5          97           25 0.2409950663
+## 6          94           15 0.5247868075
+\end{verbatim}
+
+\end{document}
