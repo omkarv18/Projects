@@ -27,10 +27,10 @@ GT ID: 903867937 (replace with your GT ID)
 """  		  	   		 	   			  		 			     			  	 
   		  	   		 	   			  		 			     			  	 
   		  	   		 	   			  		 			     			  	 
-import datetime as dt  		  	   		 	   			  		 			     			  	 
+import datetime as dt
+import os
   		  	   		 	   			  		 			     			  	 
-import numpy as np  		  	   		 	   			  		 			     			  	 
-  		  	   		 	   			  		 			     			  	 
+import numpy as np
 import matplotlib.pyplot as plt  		  	   		 	   			  		 			     			  	 
 import pandas as pd  		  	   		 	   			  		 			     			  	 
 from util import get_data, plot_data  		  	   		 	   			  		 			     			  	 
@@ -66,7 +66,7 @@ def optimize_portfolio(
     :rtype: tuple  		  	   		 	   			  		 			     			  	 
     """  		  	   		 	   			  		 			     			  	 
   		  	   		 	   			  		 			     			  	 
-    # Read in adjusted closing prices for given symbols, date range  		  	   		 	   			  		 			     			  	 
+    # Read in adjusted closing prices for given symbols, date range
     dates = pd.date_range(sd, ed)  		  	   		 	   			  		 			     			  	 
     prices_all = get_data(syms, dates)  # automatically adds SPY  		  	   		 	   			  		 			     			  	 
     prices = prices_all[syms]  # only portfolio symbols  		  	   		 	   			  		 			     			  	 
