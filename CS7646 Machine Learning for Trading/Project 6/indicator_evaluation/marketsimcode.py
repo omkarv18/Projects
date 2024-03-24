@@ -90,7 +90,7 @@ def compute_portvals(
     curr_portfolio = defaultdict(float)
     cash_portfolio = defaultdict(float)
     cash_portfolio['Cash'] = start_val
-
+    
     output = pd.DataFrame(index=stock_prices_df.index)
 
     for row in stock_prices_df.itertuples():
